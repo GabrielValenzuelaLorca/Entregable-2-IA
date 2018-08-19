@@ -8,12 +8,13 @@
 using namespace std;
 
 //Parametros
-int n_enfermeras, n_dias, n_shifts;
-vector<vector<int>>cover, preferencia, sol_inicial, sol_actual;
+int n_enfermeras, n_dias, n_shifts, puntaje_maximo;
+vector<vector<int>>cover, preferencia, sol_inicial;
+vector<int> hard_data;
 
 //Restricciones blandas
 int min_asig, max_asig, min_consec_shift ,max_consec_shift;
-vector<vector<int>> soft,puntajes;
+vector<vector<int>> soft,soft_data;
 
 
 //Funcion de lectura de archivos de parametros
@@ -61,22 +62,34 @@ int leer_soft(string nom){
 }
 
 //Funcion para evaluar restriccion dura
-int hard(vector<vector<int>> v){
-    int pivote,cont,diff=0;
+vector<int> hard(vector<vector<int>> v){
+    int pivote,cont,diff=0,rest=0;
+    vector<int> arr;
     for (int i = 0; i <n_dias ; i++) {
         for (int j = 0; j < n_shifts; j++) {
             pivote = cover[i][j];
-
             cont=0;
             for (int l = 0; l < n_enfermeras; l++) {
                 cont += v[l][4*i+j];
             }
             if (cont<pivote) {
-                diff=diff+(pivote-cont);
+                rest++;
+                diff=diff+1000*(pivote-cont);
+            }
+            //Evaluar restriccion blanda de asignaciones por shift
+            if(cont<soft[j][0]){
+                rest++;
+                diff+=(soft[j][0]-cont);
+            }
+            else if(soft[j][1]<cont){
+                rest++;
+                diff+=(cont-soft[j][1]);
             }
         }
     }
-    return diff;
+    arr.push_back(rest);
+    arr.push_back(diff);
+    return arr;
 }
 
 //Funcion para evaluar restricciones blandas
@@ -174,9 +187,47 @@ vector<vector<int>> construct(){
     return sol_inicial;
 }
 
-//Funcion para evaluar la calidad de la solucion
+//Funcion para obtener puntaje de restricciones blandas
+int soft_score(vector<vector<int>> v){
+    int cont=0;
+    for (int i = 0; i < n_enfermeras; i++) {
+        cont+=v[i][1];
+    }
+    return cont;
+}
+
+//Buscar mejor vecino
+bool neighborhood(){
+    vector<vector<int>> temp;
+    int cont,prev_i=0,prev_j=0,max=0,max_i,max_j;
+    bool termino=false;
+    for (int i = 0; i < n_enfermeras; i++) {
+        for (int j = 0; j < n_shifts*n_dias; j++) {
+            if (prev_i!=i || prev_j!=j) {
+                sol_inicial[prev_i][prev_j]=abs(sol_inicial[prev_i][prev_j]-1);
+                prev_i=i,prev_j=j;
+            }
+            sol_inicial[i][j]=abs(sol_inicial[i][j]-1);
+            cont = soft_score(val_soft(sol_inicial))-hard(sol_inicial)[1];
+            if(puntaje_maximo<cont && max<cont){
+                max=cont;
+                //sol_actual=sol_inicial;
+                termino = true;
+                max_i=i,max_j=j;
+                //cout << "Nuevo puntaje: "<< cont << "\n";
+            }
+        }
+    }
+    sol_inicial[prev_i][prev_j]=abs(sol_inicial[prev_i][prev_j]-1);
+    if(termino==true){
+        sol_inicial[max_i][max_j]=abs(sol_inicial[max_i][max_j]-1);
+        puntaje_maximo=max;
+    }
+    return termino;
+}
 
 
+//borrar porfavor
 int print_matriz(){
     for (int i = 0; i < n_enfermeras; i++) {
         for (int j = 0; j < n_shifts*n_dias; j++) {
@@ -189,6 +240,7 @@ int print_matriz(){
 }
 
 int main(int argc, char const *argv[]) {
+    int iter=0,rest=0;
     //Lectura de parametros .nsp
     leer_param("1.nsp");
     //Lectura de restricciones blandas
@@ -198,12 +250,44 @@ int main(int argc, char const *argv[]) {
     }
     //Construir solucion inicial
     sol_inicial = construct();
-    puntajes=val_soft(sol_inicial);
-    for (int i = 0; i < n_enfermeras; i++) {
-        cout <<"Enfermera "<<i<<"-Restricciones rotas: "<< puntajes[i][0]<<", puntaje: "<<puntajes[i][1]<<"\n";
+    //Setear datos de la solucion inicial
+    soft_data=val_soft(sol_inicial);
+    hard_data=hard(sol_inicial);
+    puntaje_maximo=(soft_score(soft_data)-hard_data[1]);
+    //Buscar mejor vecino
+    while (neighborhood()) {
+        iter++;
     }
-    //print_matriz();
-    //cout << hard(sol_inicial);
+    ofstream fs("output.txt");
+    fs << "\t";
+    for (int i = 0; i < n_shifts*n_dias; i++) {
+        fs << "S" << (i%4)+1 << "\t";
+    }
+    fs << "\n";
+    for (int i = 0; i < n_enfermeras; i++) {
+        fs << "n" << i+1 << "\t";
+        for (int j = 0; j < n_shifts*n_dias; j++) {
+            fs << sol_inicial[i][j]<<"\t";
+        }
+        fs << "\n";
+    }
+    soft_data=val_soft(sol_inicial);
+    hard_data=hard(sol_inicial);
+    for (int i = 0; i < n_enfermeras; i++) {
+        rest+=soft_data[i][0];
+    }
+    rest+=hard_data[0];
+    fs << rest << "\t";
+    for (int i = 0; i < n_enfermeras; i++) {
+        fs << soft_data[i][0] << "\t";
+    }
+    fs << "\n" <<puntaje_maximo<<"\t";
+    for (int i = 0; i < n_enfermeras; i++) {
+        fs << soft_data[i][1] << "\t";
+    }
+    fs << "\n";
+    fs.close();
+    cout<<"Fin!\n";
 
     return 0;
 }
