@@ -242,9 +242,9 @@ int main(int argc, char const *argv[]) {
     int rest=0,resets=0;
     bool reset=true;
     //Lectura de parametros .nsp
-    leer_param("1.nsp");
+    leer_param(argv[1]);
     //Lectura de restricciones blandas
-    if(leer_soft("1.gen")==1){
+    if(leer_soft(argv[2])==1){
         cout<<"Los archivos no son compatibles\n";
         return 1;
     }
@@ -258,7 +258,7 @@ int main(int argc, char const *argv[]) {
     while (neighborhood()) {
         continue;
     }
-    cout << "Primer puntaje: "<<puntaje_maximo << "\n";
+    //cout << "Primer puntaje: "<<puntaje_maximo << "\n";
     //Guardamos datos para el reset
     sol_actual=sol_inicial;
     puntaje_actual=puntaje_maximo;
