@@ -8,8 +8,8 @@
 using namespace std;
 
 //Parametros
-int n_enfermeras, n_dias, n_shifts, puntaje_maximo;
-vector<vector<int>>cover, preferencia, sol_inicial;
+int n_enfermeras, n_dias, n_shifts, puntaje_maximo,puntaje_actual;
+vector<vector<int>>cover, preferencia, sol_inicial,sol_actual;
 vector<int> hard_data;
 
 //Restricciones blandas
@@ -175,7 +175,7 @@ vector<vector<int>> construct(){
         sol_inicial[i].resize(n_shifts*n_dias);
         for (int j = 0; j < n_shifts*n_dias; j++) {
             num=1+rand()%(101-1);
-            if (num>=50) {
+            if (num>=70) {
                 sol_inicial[i][j] = 1;
             }
             else{
@@ -211,7 +211,6 @@ bool neighborhood(){
             cont = soft_score(val_soft(sol_inicial))-hard(sol_inicial)[1];
             if(puntaje_maximo<cont && max<cont){
                 max=cont;
-                //sol_actual=sol_inicial;
                 termino = true;
                 max_i=i,max_j=j;
                 //cout << "Nuevo puntaje: "<< cont << "\n";
@@ -240,7 +239,8 @@ int print_matriz(){
 }
 
 int main(int argc, char const *argv[]) {
-    int iter=0,rest=0;
+    int rest=0,resets=0;
+    bool reset=true;
     //Lectura de parametros .nsp
     leer_param("1.nsp");
     //Lectura de restricciones blandas
@@ -256,8 +256,34 @@ int main(int argc, char const *argv[]) {
     puntaje_maximo=(soft_score(soft_data)-hard_data[1]);
     //Buscar mejor vecino
     while (neighborhood()) {
-        iter++;
+        continue;
     }
+    cout << "Primer puntaje: "<<puntaje_maximo << "\n";
+    //Guardamos datos para el reset
+    sol_actual=sol_inicial;
+    puntaje_actual=puntaje_maximo;
+
+    while (reset) {
+        resets++;
+        //cout << "Reset numero: "<<resets << "\n";
+        sol_inicial=construct();
+        soft_data=val_soft(sol_inicial);
+        hard_data=hard(sol_inicial);
+        puntaje_maximo=(soft_score(soft_data)-hard_data[1]);
+        while (neighborhood()) {
+            continue;
+        }
+        if (puntaje_maximo>puntaje_actual) {
+            //cout << "nuevo puntaje: "<<puntaje_maximo << "\n";
+            puntaje_actual=puntaje_maximo;
+            sol_actual=sol_inicial;
+            resets=0;
+        }
+        if (resets>=5) {
+            reset=false;
+        }
+    }
+
     ofstream fs("output.txt");
     fs << "\t";
     for (int i = 0; i < n_shifts*n_dias; i++) {
@@ -267,12 +293,13 @@ int main(int argc, char const *argv[]) {
     for (int i = 0; i < n_enfermeras; i++) {
         fs << "n" << i+1 << "\t";
         for (int j = 0; j < n_shifts*n_dias; j++) {
-            fs << sol_inicial[i][j]<<"\t";
+            fs << sol_actual[i][j]<<"\t";
         }
         fs << "\n";
     }
-    soft_data=val_soft(sol_inicial);
-    hard_data=hard(sol_inicial);
+    soft_data=val_soft(sol_actual);
+    hard_data=hard(sol_actual);
+
     for (int i = 0; i < n_enfermeras; i++) {
         rest+=soft_data[i][0];
     }
@@ -281,12 +308,13 @@ int main(int argc, char const *argv[]) {
     for (int i = 0; i < n_enfermeras; i++) {
         fs << soft_data[i][0] << "\t";
     }
-    fs << "\n" <<puntaje_maximo<<"\t";
+    fs << "\n" <<puntaje_actual<<"\t";
     for (int i = 0; i < n_enfermeras; i++) {
         fs << soft_data[i][1] << "\t";
     }
     fs << "\n";
     fs.close();
+
     cout<<"Fin!\n";
 
     return 0;
